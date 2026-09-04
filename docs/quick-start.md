@@ -1,13 +1,15 @@
 # Quick Start
 
+For client-specific setup in Cursor, Codex, Claude Code, Windsurf, Cline, Goose, and other coding agents, see [AI Agent Setup](/agent-device/docs/agent-setup.md). For a single text bundle that agents can ingest, use [llms-full.txt](https://oss.callstack.com/agent-device/llms-full.txt).
+
 Every device automation follows this pattern:
 
 ```bash
 # 1. Discover the installed app identifier when needed
-agent-device apps --platform ios # or android
+agent-device apps --platform ios # or android or harmonyos
 
 # 2. Navigate
-agent-device open SampleApp --platform ios # or android
+agent-device open SampleApp --platform ios # or android or harmonyos
 
 # 3. Snapshot to get element refs
 agent-device snapshot -i
@@ -38,12 +40,16 @@ agent-device boot --platform ios # or android
 agent-device boot --platform android --device Pixel_9_Pro_XL
 # Android headless emulator boot (AVD name):
 agent-device boot --platform android --device Pixel_9_Pro_XL --headless
+# Turn off a simulator/emulator when finished:
+agent-device shutdown --platform ios
+agent-device shutdown --platform android --device Pixel_9_Pro_XL
 ```
 
 ## Common commands
 
 ```bash
 agent-device apps --platform android    # Discover the exact package name when unsure
+agent-device capabilities --platform android # Discover target-supported commands for dynamic integrations
 agent-device open SampleApp
 agent-device snapshot -i                 # Get visible interactive elements with refs
 agent-device diff snapshot               # Preferred exploration form for structural deltas
@@ -56,6 +62,7 @@ agent-device screenshot page.png         # Save to specific path
 agent-device install com.example.app ./build/app.apk     # Install app binary in-place
 agent-device install-from-source https://example.com/builds/app.apk --platform android
 agent-device reinstall com.example.app ./build/app.apk   # Fresh-state uninstall + install
+agent-device shutdown --platform android --device Pixel_9_Pro_XL
 agent-device close
 ```
 
@@ -63,8 +70,9 @@ agent-device close
 
 - Android: `.apk` and `.aab`
 - iOS: `.app` and `.ipa`
+- HarmonyOS: `.hap`
 - `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<absolute-path-to-bundletool-all.jar>` with `java` in `PATH`.
-- Optional: `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` overrides bundletool `build-apks --mode` (default: `universal`).
+- `.aab` installs use bundletool `build-apks --mode universal`.
 - `.ipa` installs extract `Payload/*.app`; if multiple app bundles exist, `<app>` selects the target by bundle id or bundle name.
 - Use `install-from-source` for existing artifact URLs, including direct Android `.apk`/`.aab` URLs and trusted archives with one installable artifact. Use `install-from-source --github-actions-artifact <owner/repo:artifact>` for daemon-resolved GitHub Actions artifacts.
 
@@ -86,11 +94,20 @@ Example batch payload for a known chat flow:
 
 ```json
 [
-  { "command": "open", "positionals": ["ChatApp"], "flags": { "platform": "android" } },
-  { "command": "click", "positionals": ["label=\"Travel chat\""], "flags": {} },
-  { "command": "wait", "positionals": ["label=\"Message\"", "3000"], "flags": {} },
-  { "command": "fill", "positionals": ["label=\"Message\"", "Filed the expense"], "flags": {} },
-  { "command": "press", "positionals": ["label=\"Send\""], "flags": {} }
+  { "command": "open", "input": { "app": "ChatApp", "platform": "android" } },
+  { "command": "click", "input": { "target": { "kind": "selector", "selector": "label=\"Travel chat\"" } } },
+  {
+    "command": "wait",
+    "input": { "kind": "selector", "selector": "label=\"Message\"", "timeoutMs": 3000 }
+  },
+  {
+    "command": "fill",
+    "input": {
+      "target": { "kind": "selector", "selector": "label=\"Message\"" },
+      "text": "Sent the update"
+    }
+  },
+  { "command": "press", "input": { "target": { "kind": "selector", "selector": "label=\"Send\"" } } }
 ]
 ```
 
@@ -106,9 +123,9 @@ agent-device find label "Email" fill "user@example.com"
 agent-device find role button click
 ```
 
-## Replay (experimental)
+## Replay
 
-For deterministic replay scripts and E2E guidance, see [Replay & E2E (Experimental)](/agent-device/docs/replay-e2e.md).
+For deterministic replay scripts and E2E guidance, see [Replay & E2E](/agent-device/docs/replay-e2e.md).
 
 ## Scrolling
 
@@ -128,7 +145,9 @@ Toggle device settings directly:
 agent-device settings wifi on
 agent-device settings airplane on
 agent-device settings appearance toggle
+agent-device settings clear-app-state
 agent-device settings location off
+agent-device settings location set 37.3349 -122.009
 agent-device settings permission grant camera
 ```
 
@@ -143,4 +162,4 @@ agent-device snapshot --json
 agent-device get text @e1 --json
 ```
 
-Note: The default text output is more compact and preferred for AI agents.
+Note: The default snapshot text is an agent-facing, token-efficient view for planning and targeting actions. Use `--raw` or `--json` when you need the full provider tree.
